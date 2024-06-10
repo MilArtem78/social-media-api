@@ -8,7 +8,11 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from social_media.models import Profile, FollowingRelationships
-from social_media.serializers import ProfileListSerializer, ProfileSerializer
+from social_media.serializers import (
+    ProfileListSerializer,
+    ProfileSerializer,
+    ProfileDetailSerializer,
+)
 
 
 class CurrentUserProfileView(RetrieveUpdateDestroyAPIView):
@@ -43,6 +47,13 @@ class ProfileViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericVi
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_class(self):
+        if self.action == "list":
+            return ProfileListSerializer
+        if self.action == "retrieve":
+            return ProfileDetailSerializer
+        return ProfileListSerializer
+
     def get_queryset(self):
         queryset = self.queryset
 
@@ -60,3 +71,60 @@ class ProfileViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericVi
             queryset = queryset.filter(last_name__icontains=last_name)
 
         return queryset
+
+    @action(
+        detail=True,
+        methods=["POST"],
+        url_path="follow",
+        permission_classes=[IsAuthenticated],
+        authentication_classes=[JWTAuthentication],
+    )
+    def follow(self, request, pk=None):
+        follower = get_object_or_404(Profile, user=request.user)
+        following = get_object_or_404(Profile, pk=pk)
+
+        if follower == following:
+            return Response(
+                {"detail": "You cannot follow yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if FollowingRelationships.objects.filter(
+            follower=follower, following=following
+        ).exists():
+            return Response(
+                {"detail": "You are already following this user."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        FollowingRelationships.objects.create(follower=follower, following=following)
+        return Response(
+            {"detail": "You started following this user."},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+    @action(
+        detail=True,
+        methods=["POST"],
+        url_path="unfollow",
+        permission_classes=[IsAuthenticated],
+        authentication_classes=[JWTAuthentication],
+    )
+    def unfollow(self, request, pk=None):
+        follower = get_object_or_404(Profile, user=request.user)
+        following = get_object_or_404(Profile, pk=pk)
+
+        try:
+            relation = FollowingRelationships.objects.get(
+                Q(follower=follower) & Q(following=following)
+            )
+            relation.delete()
+            return Response(
+                {"detail": "You have unfollowed this user."},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+        except FollowingRelationships.DoesNotExist:
+            return Response(
+                {"detail": "You are not following this user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
