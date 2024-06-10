@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from social_media.models import Profile, FollowingRelationships
+from social_media.models import Profile, FollowingRelationships, Comment, Post
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -78,3 +78,21 @@ class ProfileDetailSerializer(ProfileSerializer):
             "followers",
             "following",
         )
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    post_id = serializers.IntegerField(source="post.id", read_only=True)
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    commented_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ("id", "author_username", "post_id", "content", "commented_at")
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    liked_by = serializers.CharField(source="profile.username", read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ("id", "liked_by")
