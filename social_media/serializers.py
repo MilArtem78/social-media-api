@@ -96,3 +96,48 @@ class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ("id", "liked_by")
+
+
+class PostSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    author_full_name = serializers.CharField(source="author.full_name", read_only=True)
+    author_image = serializers.ImageField(source="author.profile_image", read_only=True)
+    image = serializers.ImageField(required=False, read_only=True)
+    likes_count = serializers.IntegerField(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
+    scheduled_at = serializers.DateTimeField(required=False, write_only=True)
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "author_username",
+            "author_full_name",
+            "author_image",
+            "content",
+            "created_at",
+            "image",
+            "likes_count",
+            "comments_count",
+            "scheduled_at",
+        )
+
+
+class PostListSerializer(PostSerializer):
+    liked_by_user = serializers.BooleanField(read_only=True)
+
+    class Meta(PostSerializer.Meta):
+        fields = PostSerializer.Meta.fields + ("liked_by_user",)
+
+
+class PostDetailSerializer(PostSerializer):
+    liked_by_user = serializers.BooleanField(read_only=True)
+    comments = CommentSerializer(many=True, read_only=True)
+    likes = LikeSerializer(many=True, read_only=True)
+
+    class Meta(PostSerializer.Meta):
+        fields = PostSerializer.Meta.fields + (
+            "liked_by_user",
+            "comments",
+            "likes",
+        )
