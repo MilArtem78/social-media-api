@@ -39,3 +39,42 @@ class ProfileListSerializer(ProfileSerializer):
     class Meta:
         model = Profile
         fields = ("id", "profile_image", "full_name", "username")
+
+
+class FollowingRelationshipSerializer(serializers.ModelSerializer):
+    profile_id = serializers.IntegerField(source="following.id", read_only=True)
+    username = serializers.CharField(source="following.username")
+
+    class Meta:
+        model = FollowingRelationships
+        fields = ("profile_id", "username")
+
+
+class FollowerRelationshipSerializer(serializers.ModelSerializer):
+    profile_id = serializers.IntegerField(source="follower.id", read_only=True)
+    username = serializers.CharField(source="follower.username")
+
+    class Meta:
+        model = FollowingRelationships
+        fields = ("profile_id", "username")
+
+
+class ProfileDetailSerializer(ProfileSerializer):
+    followers = FollowerRelationshipSerializer(many=True, read_only=True)
+    following = FollowingRelationshipSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Profile
+        fields = (
+            "id",
+            "profile_image",
+            "user_email",
+            "username",
+            "first_name",
+            "last_name",
+            "phone_number",
+            "birth_date",
+            "bio",
+            "followers",
+            "following",
+        )
