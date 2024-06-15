@@ -98,6 +98,12 @@ class LikeSerializer(serializers.ModelSerializer):
         fields = ("id", "liked_by")
 
 
+class PostImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ("id", "image")
+
+
 class PostSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(source="author.username", read_only=True)
     author_full_name = serializers.CharField(source="author.full_name", read_only=True)
