@@ -193,6 +193,16 @@ class PostViewSet(viewsets.ModelViewSet):
                 Like.objects.filter(profile=user_profile, post=OuterRef("pk"))
             ),
         )
+
+        content = self.request.query_params.get("content")
+        author_username = self.request.query_params.get("author_username")
+
+        if author_username is not None:
+            queryset = queryset.filter(author__username__icontains=author_username)
+
+        if content is not None:
+            queryset = queryset.filter(content__icontains=content)
+
         return queryset
 
     def perform_create(self, serializer):
