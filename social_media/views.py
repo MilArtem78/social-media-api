@@ -12,6 +12,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from social_media.models import Profile, FollowingRelationships, Post, Like, Comment
+from social_media.permissions import IsAuthorOrReadOnly
 from social_media.serializers import (
     ProfileListSerializer,
     ProfileSerializer,
@@ -110,7 +111,7 @@ class ProfileViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericVi
         FollowingRelationships.objects.create(follower=follower, following=following)
         return Response(
             {"detail": "You started following this user."},
-            status=status.HTTP_204_NO_CONTENT,
+            status=status.HTTP_200_OK,
         )
 
     @action(
@@ -162,7 +163,7 @@ class ProfileFollowingView(ListAPIView):
 
 class PostViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -175,7 +176,6 @@ class PostViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user_profile = self.request.user.profile
-        print(self.request)
         queryset = Post.objects.select_related("author").annotate(
             likes_count1=Subquery(
                 Like.objects.filter(post=OuterRef("pk"))
@@ -213,3 +213,48 @@ class PostViewSet(viewsets.ModelViewSet):
             {"detail": "Image uploaded successfully."},
             status=status.HTTP_200_OK,
         )
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="like",
+    )
+    def like(self, request, pk=None):
+        """Endpoint to like a post"""
+        post = get_object_or_404(Post, pk=pk)
+        user_profile = request.user.profile
+
+        if post.author == user_profile:
+            return Response(
+                {"detail": "You cannot like your post."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if Like.objects.filter(profile=user_profile, post=post).exists():
+            return Response(
+                {"detail": "You have already liked this post."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        Like.objects.create(profile=user_profile, post=post)
+        return Response({"detail": "You liked this post."}, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="unlike",
+    )
+    def unlike(self, request, pk=None):
+        """Endpoint to unlike a post"""
+        post = get_object_or_404(Post, pk=pk)
+        user_profile = request.user.profile
+        try:
+            like = Like.objects.get(profile=user_profile, post=post)
+            like.delete()
+            return Response(
+                {"detail": "You unliked this post."},
+                status=status.HTTP_200_OK,
+            )
+        except Like.DoesNotExist:
+            return Response(
+                {"detail": "You have not liked this post."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
