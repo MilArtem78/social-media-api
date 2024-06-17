@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from django.db.models import Count, OuterRef, Exists, Q, Subquery
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -25,6 +27,8 @@ from social_media.serializers import (
     PostSerializer,
     CommentSerializer,
 )
+
+from social_media.tasks import create_scheduled_post
 
 
 class CurrentUserProfileView(RetrieveUpdateDestroyAPIView):
@@ -195,7 +199,17 @@ class PostViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user.profile)
+        scheduled_at = self.request.data.get("scheduled_at")
+
+        if scheduled_at:
+            scheduled_at_utc = datetime.strptime(scheduled_at, "%Y-%m-%dT%H:%M")
+            serializer.validated_data["author_id"] = self.request.user.profile.id
+            create_scheduled_post.apply_async(
+                args=[serializer.validated_data],
+                eta=scheduled_at_utc.astimezone(timezone.utc),
+            )
+        else:
+            serializer.save(author=self.request.user.profile)
 
     @action(
         methods=["POST"],
