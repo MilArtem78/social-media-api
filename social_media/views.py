@@ -23,6 +23,7 @@ from social_media.serializers import (
     PostDetailSerializer,
     PostImageSerializer,
     PostSerializer,
+    CommentSerializer,
 )
 
 
@@ -177,18 +178,6 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user_profile = self.request.user.profile
         queryset = Post.objects.select_related("author").annotate(
-            likes_count1=Subquery(
-                Like.objects.filter(post=OuterRef("pk"))
-                .values("post")
-                .annotate(count=Count("pk"))
-                .values("count")
-            ),
-            comments_count1=Subquery(
-                Comment.objects.filter(post=OuterRef("pk"))
-                .values("post")
-                .annotate(count=Count("pk"))
-                .values("count")
-            ),
             liked_by_user=Exists(
                 Like.objects.filter(profile=user_profile, post=OuterRef("pk"))
             ),
@@ -305,3 +294,18 @@ class PostViewSet(viewsets.ModelViewSet):
         queryset = self.get_queryset().filter(likes__profile=user_profile)
         serializer = PostListSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Comment.objects.select_related("author", "post").filter(
+            post_id=self.kwargs["post_id"]
+        )
+        return queryset
+
+    def perform_create(self, serializer):
+        post = get_object_or_404(Post, id=self.kwargs.get("post_id"))
+        serializer.save(author=self.request.user.profile, post=post)

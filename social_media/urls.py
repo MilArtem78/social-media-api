@@ -6,11 +6,13 @@ from social_media.views import (
     ProfileFollowersView,
     ProfileFollowingView,
     PostViewSet,
+    CommentViewSet,
 )
 
 router = DefaultRouter()
 router.register("profiles", ProfileViewSet, basename="profiles")
 router.register("posts", PostViewSet, basename="posts")
+router.register("posts/(?P<post_id>\d+)/comments", CommentViewSet, "post-comments")
 
 
 urlpatterns = [
