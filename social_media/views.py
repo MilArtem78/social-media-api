@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 from django.db.models import Count, OuterRef, Exists, Q, Subquery
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import (
@@ -87,6 +89,28 @@ class ProfileViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericVi
             queryset = queryset.filter(last_name__icontains=last_name)
 
         return queryset
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "username",
+                type=OpenApiTypes.STR,
+                description="Filter by username example: ?username=artem",
+            ),
+            OpenApiParameter(
+                "first_name",
+                type=OpenApiTypes.STR,
+                description="Filter by first name example: ?first_name=artem",
+            ),
+            OpenApiParameter(
+                "last_name",
+                type=OpenApiTypes.STR,
+                description="Filter by last name example: ?last_name=artem",
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     @action(
         detail=True,
@@ -210,6 +234,23 @@ class PostViewSet(viewsets.ModelViewSet):
             )
         else:
             serializer.save(author=self.request.user.profile)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "content",
+                type=OpenApiTypes.STR,
+                description="Filter by content example: ?content=hello",
+            ),
+            OpenApiParameter(
+                "author_username",
+                type=OpenApiTypes.STR,
+                description="Filter by author username example: ?author_username=artem",
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     @action(
         methods=["POST"],
