@@ -147,3 +147,13 @@ class PostDetailSerializer(PostSerializer):
             "comments",
             "likes",
         )
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    post_id = serializers.IntegerField(source="post.id", read_only=True)
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    commented_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ("id", "author_username", "post_id", "content", "commented_at")
